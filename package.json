@@ -1,0 +1,24 @@
+{
+  "name": "node-controllab",
+  "version": "1.0.0",
+  "description": "A Javascript module to interface with the LEGO DACTA Control Lab.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tslint -c tslint.json \"./src/**/*.ts\" && tsc",
+    "all": "npm run build",
+    "prepublishOnly": "npm run build"
+  },
+  "author": "Nathan Kellenicki <nathan@kellenicki.com>",
+  "license": "MIT",
+  "dependencies": {
+    "debug": "^4.1.1",
+    "serialport": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/debug": "^4.1.5",
+    "@types/node": "^14.0.5",
+    "@types/serialport": "^8.0.1",
+    "tslint": "^6.1.2",
+    "typescript": "^3.9.3"
+  }
+}
