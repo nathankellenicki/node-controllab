@@ -63,8 +63,8 @@ export class ControlLab extends EventEmitter {
         if (this.state === Consts.State.NOT_READY) {
             if (this._messageBuffer.length >= HANDSHAKE_INBOUND.length) {
                 const message = this._messageBuffer.slice(0, HANDSHAKE_INBOUND.length);
-                if (message.toString() === HANDSHAKE_INBOUND) {
-                    this._messageBuffer = this._messageBuffer.slice(HANDSHAKE_INBOUND.length);
+                if (message.includes(HANDSHAKE_INBOUND)) {
+                    this._messageBuffer = this._messageBuffer.slice(this._messageBuffer.indexOf(HANDSHAKE_INBOUND) + HANDSHAKE_INBOUND.length);
                     this.state = Consts.State.READY;
                     if (this._messageBuffer.length > 0) {
                         this._handleIncomingData();
