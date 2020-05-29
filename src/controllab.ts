@@ -17,19 +17,12 @@ export class ControlLab extends EventEmitter {
 
     private _serialPort: SerialPort;
     private _messageBuffer: Buffer = Buffer.alloc(0);
+    private _keepAlive: NodeJS.Timer;
 
-    private _sensorValues: number[] = [0, 0, 0, 0, 0, 0, 0, 0];
+    private _sensorValues: number[] = new Array(8).fill(0);
+    private _rotationValues: number[] = new Array(8).fill(0);
 
-    private _sensorTypes: Consts.SensorType[] = [
-        Consts.SensorType.UNKNOWN,
-        Consts.SensorType.UNKNOWN,
-        Consts.SensorType.UNKNOWN,
-        Consts.SensorType.UNKNOWN,
-        Consts.SensorType.UNKNOWN,
-        Consts.SensorType.UNKNOWN,
-        Consts.SensorType.UNKNOWN,
-        Consts.SensorType.UNKNOWN,
-    ]
+    private _sensorTypes: Consts.SensorType[] = new Array(8).fill(Consts.SensorType.UNKNOWN);
 
 
     constructor (path: string) {
@@ -37,6 +30,7 @@ export class ControlLab extends EventEmitter {
         this._serialPort = new SerialPort(path, { baudRate: 9600 });
         this._serialPort.on("data", this._handleIncomingData);
         this._sendHandshake();
+        this._keepAlive = this._startKeepAlive();
     }
 
 
@@ -47,6 +41,13 @@ export class ControlLab extends EventEmitter {
 
     private _sendHandshake () {
         this._serialPort.write(Buffer.from(HANDSHAKE_OUTBOUND));
+    }
+
+
+    private _startKeepAlive () {
+        return setInterval(() => {
+            this._serialPort.write(Buffer.from([0x02]));
+        }, 2000);
     }
 
 
@@ -116,43 +117,52 @@ export class ControlLab extends EventEmitter {
     private _parseMessage (message: Buffer) {
         for (let sensor = 0; sensor < 8; sensor++) {
 
-            const word = Buffer.from([
-                message[SENSOR_MESSAGE_OFFSETS[sensor]],
-                message[SENSOR_MESSAGE_OFFSETS[sensor] + 1]
-            ]);
+            const word = message.slice(SENSOR_MESSAGE_OFFSETS[sensor], SENSOR_MESSAGE_OFFSETS[sensor] + 2);
+
+            const value = (word[0] << 2) | ((word[1] >> 6) & 0x03);
+            const state = word[1] & 0x3f;
+            let change = state & 3;
+            if ((state & 4) === 0) {
+                change *= -1;
+            }
+            this._rotationValues[sensor] += change;
 
             switch (this._sensorTypes[sensor]) {
                 case Consts.SensorType.TOUCH:
-                    {
-                        const value = word[0];
-                        if (value !== this._sensorValues[sensor]) {
-                            this._sensorValues[sensor] = value;
-                            if (value === 0xff) {
-                                this.emit("released", sensor);
-                            } else {
-                                this.emit("pressed", sensor);
-                            }
+                {
+                    if (value !== this._sensorValues[sensor]) {
+                        this._sensorValues[sensor] = value;
+                        if (value < 1000) {
+                            this.emit("pressed", sensor);
+                        } else {
+                            this.emit("released", sensor);
                         }
                     }
                     break;
+                }
                 case Consts.SensorType.TEMPERATURE:
-                    {
-                        // NK: Revisit this, endianness might be wrong
-                        const value = (760 - (word.readUInt16LE(0) & 0xffc0)) / 4.4 + 32;
-                        if (value !== this._sensorValues[sensor]) {
-                            this._sensorValues[sensor] = value;
-                            this.emit("temperature", sensor, value);
-                        }
-                        break;
+                {
+                    const temperature = (760 - value) / 4.4 + 32;
+                    if (temperature !== this._sensorValues[sensor]) {
+                        this._sensorValues[sensor] = temperature;
+                        this.emit("temperature", sensor, temperature);
                     }
+                    break;
+                }
                 case Consts.SensorType.LIGHT:
                     break;
                 case Consts.SensorType.ROTATION:
+                {
+                    const rotation = this._rotationValues[sensor];
+                    if (rotation !== this._sensorValues[sensor]) {
+                        this._sensorValues[sensor] = rotation;
+                        this.emit("rotate", sensor, rotation);
+                    }
                     break;
+                }
             }
 
         }
     }
-
 
 }
