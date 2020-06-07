@@ -16,28 +16,58 @@ export class ControlLab extends EventEmitter {
 
     public state: Consts.State = Consts.State.NOT_READY;
 
-    private _serialPort: SerialPort;
+    private _serialPort: SerialPort | undefined;
+    private _serialPath: string;
     private _messageBuffer: Buffer = Buffer.alloc(0);
-    private _keepAlive: NodeJS.Timer;
+    private _keepAlive: NodeJS.Timer | undefined;
 
     private _sensorValues: number[] = new Array(8).fill(0);
     private _rotationValues: number[] = new Array(8).fill(0);
+    private _forceValues: number[] = new Array(8).fill(0);
+
+    private _connectCallback: any;
 
     private _sensorTypes: Consts.SensorType[] = new Array(8).fill(Consts.SensorType.UNKNOWN);
 
 
     constructor (path: string) {
         super();
-        this._serialPort = new SerialPort(path, { baudRate: 9600 });
-        this._serialPort.on("data", this._handleIncomingData.bind(this));
-        this._sendHandshake();
-        this._keepAlive = this._startKeepAlive();
+        this._serialPath = path;
+    }
+
+
+    public connect (callback: any) {
+        return new Promise((resolve) => {
+            this._serialPort = new SerialPort(this._serialPath, { baudRate: 9600 });
+            this._serialPort.on("data", this._handleIncomingData.bind(this));
+            this._sendHandshake();
+            this._connectCallback = () => {
+                this._keepAlive = this._startKeepAlive();
+                if (callback) {
+                    callback();
+                }
+                return resolve();
+            }
+        });
+    }
+
+
+    public disconnect() {
+        if (this._serialPort) {
+            this._serialPort.close();
+            this._serialPort = undefined;
+            if (this._keepAlive) {
+                clearInterval(this._keepAlive);
+                this._keepAlive = undefined;
+            }
+        }
     }
 
 
     public setSensorType (port: number, type: Consts.SensorType) {
         this._sensorTypes[port - 1] = type;
         this._sensorValues[port - 1] = 0;
+        this._forceValues[port - 1] = 0;
         this.resetRotation(port);
     }
 
@@ -48,6 +78,9 @@ export class ControlLab extends EventEmitter {
 
 
     public setPower (output: string, power: number) {
+        if (!this._serialPort) {
+            throw new Error("Control Lab not connected");
+        }
         if (!(power <= 8 && power >= -8)) {
             throw new Error("Power must be between -8 and 8");
         }
@@ -83,13 +116,13 @@ export class ControlLab extends EventEmitter {
 
 
     private _sendHandshake () {
-        this._serialPort.write(Buffer.from(HANDSHAKE_OUTBOUND));
+        this._serialPort?.write(Buffer.from(HANDSHAKE_OUTBOUND));
     }
 
 
     private _startKeepAlive () {
         return setInterval(() => {
-            this._serialPort.write(Buffer.from([0x02]));
+            this._serialPort?.write(Buffer.from([0x02]));
         }, 2000);
     }
 
@@ -115,6 +148,9 @@ export class ControlLab extends EventEmitter {
                     this._messageBuffer = this._messageBuffer.slice(this._messageBuffer.indexOf(HANDSHAKE_INBOUND) + HANDSHAKE_INBOUND.length);
                     this.state = Consts.State.READY;
                     this.emit("connected");
+                    if (this._connectCallback) {
+                        this._connectCallback();
+                    }
                     if (this._messageBuffer.length > 0) {
                         this._handleIncomingData();
                     }
@@ -179,36 +215,42 @@ export class ControlLab extends EventEmitter {
                 case Consts.SensorType.TOUCH:
                 {
                     const pressedValue = (value < 1000) ? 1 : 0;
+                    const force = Math.floor(100 - ((value / 1024) * 100));
                     if (pressedValue !== this._sensorValues[sensor]) {
                         this._sensorValues[sensor] = pressedValue;
                         this.emit("touch", port, { event: pressedValue });
+                    }
+                    if (force !== this._forceValues[sensor]) {
+                        this._forceValues[sensor] = force;
+                        this.emit("force", port, { force });
                     }
                     break;
                 }
                 case Consts.SensorType.TEMPERATURE:
                 {
                     const fahrenheit = +(((760 - value) / 4.4 + 32).toFixed(2));
+                    const celsius = +(((760 - value) / 4.4 * 5 / 9).toFixed(2));
                     if (fahrenheit !== this._sensorValues[sensor]) {
                         this._sensorValues[sensor] = fahrenheit;
-                        this.emit("temperature", port, { fahrenheit });
+                        this.emit("temperature", port, { fahrenheit, celsius });
                     }
                     break;
                 }
                 case Consts.SensorType.LIGHT:
                 {
-                    const intensity = value;
+                    const intensity = Math.floor(146 - (value / 7));
                     if (intensity !== this._sensorValues[sensor]) {
                         this._sensorValues[sensor] = intensity;
-                        this.emit("light", port, { intensity: 1024 - intensity });
+                        this.emit("light", port, { intensity });
                     }
                     break;
                 }
                 case Consts.SensorType.ROTATION:
                 {
-                    const rotation = this._rotationValues[sensor];
-                    if (rotation !== this._sensorValues[sensor]) {
-                        this._sensorValues[sensor] = rotation;
-                        this.emit("rotate", port, { degrees: rotation * 22.5 });
+                    const rotations = this._rotationValues[sensor];
+                    if (rotations !== this._sensorValues[sensor]) {
+                        this._sensorValues[sensor] = rotations;
+                        this.emit("rotate", port, { rotations });
                     }
                     break;
                 }

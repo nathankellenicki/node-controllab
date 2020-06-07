@@ -2,7 +2,9 @@ const ControlLab = require("..");
 
 const controlLab = new ControlLab.ControlLab("/dev/tty.usbserial-AC018HBC");
 
-controlLab.on("connected", async () => {
+(async () => {
+
+    await controlLab.connect();
 
     console.log("Connected to Control Lab!");
 
@@ -15,4 +17,4 @@ controlLab.on("connected", async () => {
         }
     });
 
-});
+})();
