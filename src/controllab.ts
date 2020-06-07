@@ -36,7 +36,7 @@ export class ControlLab extends EventEmitter {
     }
 
 
-    public connect (callback: any) {
+    public connect (callback?: any) {
         return new Promise((resolve) => {
             this._serialPort = new SerialPort(this._serialPath, { baudRate: 9600 });
             this._serialPort.on("data", this._handleIncomingData.bind(this));
