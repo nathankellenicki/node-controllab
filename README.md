@@ -2,7 +2,6 @@
 
 ### Installation
 
-Node.js Installation
 Node.js v8.0+ required.
 
 `npm install node-controllab --save`
