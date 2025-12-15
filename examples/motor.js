@@ -1,6 +1,8 @@
-const ControlLab = require("..");
+import ControlLab from "../dist/index.js";
 
-const controlLab = new ControlLab.ControlLab("/dev/tty.usbserial-AC018HBC");
+const controlLab = new ControlLab("/dev/tty.usbserial-AC018KSE");
+
+const OUTPUT_PORT = "B";
 
 (async () => {
 
@@ -8,29 +10,28 @@ const controlLab = new ControlLab.ControlLab("/dev/tty.usbserial-AC018HBC");
 
     console.log("Connected to Control Lab!");
 
-    console.log("Starting motor on port A at power 8 for 2 seconds");
-    controlLab.setPower("A", 8);
+    console.log(`Starting motor on output port ${OUTPUT_PORT} at power 8 for 2 seconds`);
+    controlLab.setPower(OUTPUT_PORT, 8);
     await controlLab.sleep(2000);
 
-    console.log("Stopping motor on port A for 2 seconds");
-    controlLab.setPower("A", 0);
+    console.log(`Stopping motor on output port ${OUTPUT_PORT} for 2 seconds`);
+    controlLab.setPower(OUTPUT_PORT, 0);
     await controlLab.sleep(2000);
 
-    console.log("Motor on port A at power -4 for 1 seconds");
-    controlLab.setPower("A", -4);
+    console.log(`Motor on output port ${OUTPUT_PORT} at power -4 for 1 seconds`);
+    controlLab.setPower(OUTPUT_PORT, -4);
     await controlLab.sleep(1000);
 
-    console.log("Stopping motor on port A for 1 seconds");
-    controlLab.setPower("A", 0);
+    console.log(`Stopping motor on output port ${OUTPUT_PORT} for 1 seconds`);
+    controlLab.setPower(OUTPUT_PORT, 0);
     await controlLab.sleep(1000);
 
-    console.log("Motor on port A at power 6 for 3 seconds");
-    controlLab.setPower("A", 6);
+    console.log(`Motor on output port ${OUTPUT_PORT} at power 2 for 3 seconds`);
+    controlLab.setPower(OUTPUT_PORT, 2);
     await controlLab.sleep(3000);
 
-    console.log("Stopping motor on port A");
-    await controlLab.setPower("A", 0);
-
+    console.log(`Stopping motor on output port ${OUTPUT_PORT}`);
+    await controlLab.setPower(OUTPUT_PORT, 0);
     controlLab.disconnect();
 
 })();

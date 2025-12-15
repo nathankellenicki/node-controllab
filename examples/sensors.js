@@ -1,6 +1,6 @@
-const ControlLab = require("..");
+import ControlLab, { TouchEvent } from "../dist/index.js";
 
-const controlLab = new ControlLab.ControlLab("/dev/tty.usbserial-AC018HBC");
+const controlLab = new ControlLab("/dev/tty.usbserial-AC018KSE");
 
 (async () => {
 
@@ -8,31 +8,28 @@ const controlLab = new ControlLab.ControlLab("/dev/tty.usbserial-AC018HBC");
 
     console.log("Connected to Control Lab!");
 
-    controlLab.setSensorType(1, ControlLab.Consts.SensorType.TOUCH);
-    controlLab.on("touch", (port, { event }) => {
-        if (event === ControlLab.Consts.TouchEvent.PRESSED) {
-            console.log(`Touch sensor on port ${port} pressed`);
-        } else if (event === ControlLab.Consts.TouchEvent.RELEASED) {
-            console.log(`Touch sensor on port ${port} released`);
+    controlLab.setTouchSensor(1);
+    controlLab.on("touch", ({ inputPort, event, force }) => {
+        if (event === TouchEvent.Pressed) {
+            console.log(`Touch sensor on input port ${inputPort} pressed with ${force}% force`);
+        } else if (event === TouchEvent.Released) {
+            console.log(`Touch sensor on input port ${inputPort} released`);
         }
     });
-    controlLab.on("force", (port, { force }) => {
-        console.log(`Touch sensor on port ${port} pressed with ${force}% force`);
+
+    controlLab.setTemperatureSensor(2);
+    controlLab.on("temperature", ({ inputPort, fahrenheit, celsius }) => {
+        console.log(`Temperature sensor on input port ${inputPort} at ${fahrenheit}f/${celsius}c`);
     });
 
-    controlLab.setSensorType(2, ControlLab.Consts.SensorType.TEMPERATURE);
-    controlLab.on("temperature", (port, { fahrenheit, celsius }) => {
-        console.log(`Temperature sensor on port ${port} at ${fahrenheit}f/${celsius}c`);
+    controlLab.setRotationSensor(5);
+    controlLab.on("rotation", ({ inputPort, rotations }) => {
+        console.log(`Rotation sensor on input port ${inputPort} rotated by ${rotations} rotations`);
     });
 
-    controlLab.setSensorType(5, ControlLab.Consts.SensorType.ROTATION);
-    controlLab.on("rotate", (port, { rotations }) => {
-        console.log(`Rotation sensor on port ${port} rotated by ${rotations} rotations`);
-    });
-
-    controlLab.setSensorType(6, ControlLab.Consts.SensorType.LIGHT);
-    controlLab.on("light", (port, { intensity }) => {
-        console.log(`Light sensor on port ${port} detected light intensity at ${intensity}`);
+    controlLab.setLightSensor(6);
+    controlLab.on("light", ({ inputPort, intensity }) => {
+        console.log(`Light sensor on input port ${inputPort} detected light intensity at ${intensity}`);
     });
 
 })();

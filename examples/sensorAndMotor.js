@@ -1,6 +1,9 @@
-const ControlLab = require("..");
+import ControlLab, { TouchEvent } from "../dist/index.js";
 
-const controlLab = new ControlLab.ControlLab("/dev/tty.usbserial-AC018HBC");
+const controlLab = new ControlLab("/dev/tty.usbserial-AC018KSE");
+
+const INPUT_PORT = 1;
+const OUTPUT_PORT = "B";
 
 (async () => {
 
@@ -8,12 +11,14 @@ const controlLab = new ControlLab.ControlLab("/dev/tty.usbserial-AC018HBC");
 
     console.log("Connected to Control Lab!");
 
-    controlLab.setSensorType(1, ControlLab.Consts.SensorType.TOUCH);
-    controlLab.on("touch", (port, { event }) => {
-        if (event === ControlLab.Consts.TouchEvent.PRESSED) {
-            controlLab.setPower("A", 8);
-        } else if (event === ControlLab.Consts.TouchEvent.RELEASED) {
-            controlLab.setPower("A", 0);
+    controlLab.setTouchSensor(INPUT_PORT);
+    controlLab.on("touch", ({ event }) => {
+        if (event === TouchEvent.Pressed) {
+            console.log(`Starting motor on output port ${OUTPUT_PORT} at power 8`);
+            controlLab.setPower(OUTPUT_PORT, 8);
+        } else if (event === TouchEvent.Released) {
+            console.log(`Stopping motor on output port ${OUTPUT_PORT}`);
+            controlLab.setPower(OUTPUT_PORT, 0);
         }
     });
 
